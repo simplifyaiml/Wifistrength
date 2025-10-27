@@ -1,44 +1,54 @@
-name: Android CI
+name: Android CI - Build APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main, master ]
+  workflow_dispatch: # allows manual trigger from Actions tab
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      # 1️⃣ Checkout source code
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # 1. Set up Java Environment
-    - name: Set up JDK 11
-      uses: actions/setup-java@v4
-      with:
-        java-version: '11'
-        distribution: 'temurin'
-        # Caches the Gradle dependencies to speed up subsequent runs
-        cache: gradle
+      # 2️⃣ Set up JDK for Android build
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
 
-    # 2. Grant Execute Permission (The fix you needed)
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      # 3️⃣ Give execute permission to Gradle wrapper
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
-    # 3. Lint the code (Good practice to catch style/structure issues)
-    - name: Run Lint checks
-      run: ./gradlew lintDebug
+      # 4️⃣ Cache Gradle dependencies (faster builds)
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    # 4. Build the project
-    - name: Build with Gradle
-      run: ./gradlew assembleRelease
+      # 5️⃣ Build Debug APK
+      - name: Build Debug APK
+        run: ./gradlew clean assembleDebug --stacktrace
 
-    # 5. Upload Artifact (Makes the built APK available for download)
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release-apk
-        path: app/build/outputs/apk/release/*.apk
-        # The path 'app/build/outputs/apk/release/' is standard for Android projects.
+      # 6️⃣ Run Lint checks (optional)
+      - name: Run Lint checks
+        run: ./gradlew lintDebug
+
+      # 7️⃣ Upload generated APK as artifact
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wifistrength-debug-apk
+          path: app/build/outputs/apk/debug/app-de
